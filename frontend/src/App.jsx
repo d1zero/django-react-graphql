@@ -2,9 +2,19 @@ import { useMutation, useQuery } from "@apollo/client";
 import { useEffect, useState } from "react";
 import { CREATE_BOOK, DELETE_BOOK, UPDATE_BOOK } from "./mutations/book";
 import { GET_ALL_BOOKS } from "./query/book";
+import { observer } from "mobx-react-lite";
+import User from "./store/user";
+import { LOGIN_USER } from "./mutations/user";
+import { GET_USER_DATA } from "./query/user";
 
 function App() {
     const { data, loading, error, refetch } = useQuery(GET_ALL_BOOKS);
+    const userResp = useQuery(GET_USER_DATA, {
+        variables: { token: localStorage.getItem("token") },
+    });
+    const userData = userResp.data
+    const userLoading = userResp.loading
+    const userRefetch = userResp.refetch
     const [newBook] = useMutation(CREATE_BOOK, {
         refetchQueries: [{ query: GET_ALL_BOOKS }],
     });
@@ -14,16 +24,23 @@ function App() {
     const [updBook] = useMutation(UPDATE_BOOK, {
         refetchQueries: [{ query: GET_ALL_BOOKS }],
     });
+    const [loginUser] = useMutation(LOGIN_USER);
 
     const [books, setBooks] = useState([]);
     const [name, setName] = useState("");
     const [date, setDate] = useState("");
     const [editName, setEditName] = useState("");
     const [editDate, setEditDate] = useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
 
     useEffect(() => {
         if (!loading) {
             setBooks(data.allBooks);
+        }
+        if (!userLoading) {
+            console.log(userData)
+            User.setUser(userData?.viewer);
         }
     }, [data]);
 
@@ -83,12 +100,44 @@ function App() {
             });
     };
 
+    const login = (e) => {
+        e.preventDefault();
+        loginUser({
+            variables: {
+                username,
+                password,
+            },
+        })
+            .then(({ data }) => {
+                if (data?.tokenAuth?.token) {
+                    localStorage.setItem("token", data.tokenAuth.token);
+                }
+            })
+            .then();
+    };
+
     if (loading) {
         return <h1>Loading...</h1>;
     }
 
     return (
         <>
+            {User.getUser()?.username || "not logged in"}
+            <h1>Login form</h1>
+            <form>
+                <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                />
+                <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                />
+                <button onClick={(e) => login(e)}>Login</button>
+            </form>
+            <h2>Add book</h2>
             <form>
                 <input
                     value={name}
@@ -136,4 +185,4 @@ function App() {
     );
 }
 
-export default App;
+export default observer(App);

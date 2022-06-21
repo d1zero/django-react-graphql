@@ -2,6 +2,7 @@ import graphene
 from graphql import GraphQLError
 from book.models import Author, Book
 from book.types import BookType
+from graphql_jwt.decorators import login_required
 
 
 class CreateBookMutation(graphene.Mutation):
@@ -13,6 +14,7 @@ class CreateBookMutation(graphene.Mutation):
     book = graphene.Field(BookType)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, title, author_id, date_of_release):
         author = Author.objects.get(id=author_id)
         book = Book(title=title, author=author,
