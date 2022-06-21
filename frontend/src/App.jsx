@@ -4,7 +4,12 @@ import { CREATE_BOOK, DELETE_BOOK, UPDATE_BOOK } from "./mutations/book";
 import { GET_ALL_BOOKS } from "./query/book";
 import { observer } from "mobx-react-lite";
 import User from "./store/user";
-import { LOGIN_USER } from "./mutations/user";
+import {
+    DELETE_ACCESS_TOKEN,
+    DELETE_REFRESH_TOKEN,
+    LOGIN_USER,
+    REFRESH_TOKEN,
+} from "./mutations/user";
 import { GET_USER_DATA } from "./query/user";
 
 function App() {
@@ -12,9 +17,9 @@ function App() {
     const userResp = useQuery(GET_USER_DATA, {
         variables: { token: localStorage.getItem("token") },
     });
-    const userData = userResp.data
-    const userLoading = userResp.loading
-    const userRefetch = userResp.refetch
+    const userData = userResp.data;
+    const userLoading = userResp.loading;
+    const userRefetch = userResp.refetch;
     const [newBook] = useMutation(CREATE_BOOK, {
         refetchQueries: [{ query: GET_ALL_BOOKS }],
     });
@@ -25,6 +30,9 @@ function App() {
         refetchQueries: [{ query: GET_ALL_BOOKS }],
     });
     const [loginUser] = useMutation(LOGIN_USER);
+    const [deleteAccessToken] = useMutation(DELETE_ACCESS_TOKEN);
+    const [deleteRefreshToken] = useMutation(DELETE_REFRESH_TOKEN);
+    const [refreshToken] = useMutation(REFRESH_TOKEN);
 
     const [books, setBooks] = useState([]);
     const [name, setName] = useState("");
@@ -39,8 +47,12 @@ function App() {
             setBooks(data.allBooks);
         }
         if (!userLoading) {
-            console.log(userData)
-            User.setUser(userData?.viewer);
+            if (userData?.viewer) {
+                User.setUser();
+            } else {
+                refreshToken();
+                userRefetch();
+            }
         }
     }, [data]);
 
@@ -107,13 +119,21 @@ function App() {
                 username,
                 password,
             },
-        })
-            .then(({ data }) => {
-                if (data?.tokenAuth?.token) {
-                    localStorage.setItem("token", data.tokenAuth.token);
-                }
-            })
-            .then();
+        }).then(({ data }) => {
+            if (data?.tokenAuth?.token) {
+                localStorage.setItem("token", data.tokenAuth.token);
+                userRefetch();
+                User.setUser(userData?.viewer || null);
+            }
+        });
+    };
+
+    const logout = (e) => {
+        e.preventDefault();
+        deleteAccessToken();
+        deleteRefreshToken();
+        localStorage.removeItem("token");
+        User.setUser(null);
     };
 
     if (loading) {
@@ -123,20 +143,26 @@ function App() {
     return (
         <>
             {User.getUser()?.username || "not logged in"}
-            <h1>Login form</h1>
-            <form>
-                <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                />
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-                <button onClick={(e) => login(e)}>Login</button>
-            </form>
+            {!User.getUser() ? (
+                <>
+                    <h1>Login form</h1>
+                    <form>
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <button onClick={(e) => login(e)}>Login</button>
+                    </form>
+                </>
+            ) : (
+                <button onClick={(e) => logout(e)}>logout</button>
+            )}
             <h2>Add book</h2>
             <form>
                 <input
