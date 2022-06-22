@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'graphene_django',
     'corsheaders',
     'graphql_jwt.refresh_token.apps.RefreshTokenConfig',
-
+    'rest_framework',
 
     'authentication',
     'book',
